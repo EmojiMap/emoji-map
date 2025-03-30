@@ -20,8 +20,8 @@ struct TallTextFieldStyle: TextFieldStyle {
 }
 
 struct AdditionalUserInfo: View {
-    @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: HomeViewModel
+    @Environment(\.dismiss) private var dismiss
     
     @State private var email = ""
     @State private var firstName = ""
@@ -30,15 +30,15 @@ struct AdditionalUserInfo: View {
     @State private var isSubmitting = false
     @State private var errorMessage: String?
     @State private var showError = false
-  
-    @FocusState private var focusedField: Field?
-
+    
     enum Field {
         case email
         case firstName
         case lastName
     }
-    
+  
+    @FocusState private var focusedField: Field?
+
     private let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
     
     var body: some View {
@@ -95,6 +95,7 @@ struct AdditionalUserInfo: View {
                                     .textContentType(.emailAddress)
                                     .keyboardType(.emailAddress)
                                     .autocapitalization(.none)
+                                    .disableAutocorrection(true)
                                     .focused($focusedField, equals: .email)
                                     .submitLabel(.next)
                                     .onSubmit {
@@ -121,6 +122,7 @@ struct AdditionalUserInfo: View {
                                     .textFieldStyle(TallTextFieldStyle())
                                     .textContentType(.givenName)
                                     .autocapitalization(.words)
+                                    .disableAutocorrection(true)
                                     .focused($focusedField, equals: .firstName)
                                     .submitLabel(.next)
                                     .onSubmit {
@@ -138,6 +140,7 @@ struct AdditionalUserInfo: View {
                                     .textFieldStyle(TallTextFieldStyle())
                                     .textContentType(.familyName)
                                     .autocapitalization(.words)
+                                    .disableAutocorrection(true)
                                     .focused($focusedField, equals: .lastName)
                                     .submitLabel(.done)
                                     .onSubmit {
@@ -200,6 +203,7 @@ struct AdditionalUserInfo: View {
         .onAppear {
             focusedField = .email
         }
+        .interactiveDismissDisabled(isSubmitting)
     }
     
     private func submitForm() async {
@@ -212,6 +216,7 @@ struct AdditionalUserInfo: View {
                 firstName: firstName,
                 lastName: lastName
             )
+            viewModel.shouldShowAdditionalInfoSheet = false
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

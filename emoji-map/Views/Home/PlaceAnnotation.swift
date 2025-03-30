@@ -116,7 +116,7 @@ struct PlaceAnnotation: View {
                 }
             }
         }
-        .onChange(of: isHighlighted) { newValue in
+        .onChange(of: isHighlighted) { oldValue, newValue in
             if newValue {
                 // Do a quick bounce when becoming highlighted
                 bounce = true

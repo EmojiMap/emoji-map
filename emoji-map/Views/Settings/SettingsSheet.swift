@@ -19,7 +19,8 @@ import CryptoKit
 struct SettingsSheet: View {
     // Logger
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.emoji-map", category: "SettingsSheet")
-    
+
+
     // ViewModel
     @ObservedObject var viewModel: HomeViewModel
     
@@ -34,10 +35,7 @@ struct SettingsSheet: View {
     
     // State for confirmation dialog
     @State private var showResetConfirmation = false
-    
-    // State for showing additional user info sheet
-    @State private var showAdditionalUserInfo = false
-        
+   
     // State for Apple Sign In
     @State private var isAppleSignInLoading = false
     @State private var appleSignInError: String? = nil
@@ -274,7 +272,7 @@ struct SettingsSheet: View {
                         // Test Additional Info Sheet Button
                         Button(action: {
                             logger.notice("Test additional info sheet requested")
-                            showAdditionalUserInfo = true
+                            viewModel.shouldShowAdditionalInfoSheet = true
                         }) {
                             HStack {
                                 Image(systemName: "person.crop.circle.badge.plus")
@@ -390,9 +388,6 @@ struct SettingsSheet: View {
             }
             .padding()
         }
-        .onAppear {
-            logger.notice("Settings sheet appeared")
-        }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(userPreferences: userPreferences, isFromSettings: true)
         }
@@ -419,7 +414,7 @@ struct SettingsSheet: View {
         } message: {
             Text("This will reset all settings to their default values, clear all cached data, and sign you out. This action cannot be undone.")
         }
-        .fullScreenCover(isPresented: $showAdditionalUserInfo) {
+        .fullScreenCover(isPresented: $viewModel.shouldShowAdditionalInfoSheet) {
             AdditionalUserInfo(viewModel: viewModel)
         }
     }
@@ -456,7 +451,7 @@ struct SettingsSheet: View {
                     isAppleSignInLoading = false
                     return
                 }
-                
+  
                 logger.notice("Successfully obtained Apple ID credential")
                 logger.notice("User identifier: \(credential.user)")
                 
@@ -501,23 +496,24 @@ struct SettingsSheet: View {
                     isAppleSignInLoading = false
                     return
                 }
-                
+
                 logger.notice("Identity token data length: \(identityToken.count) bytes")
                 
                 guard let idToken = String(data: identityToken, encoding: .utf8) else {
                     logger.error("Unable to convert identity token to string")
+
                     appleSignInError = "Unable to process Apple ID token"
                     showAppleSignInError = true
                     isAppleSignInLoading = false
                     return
                 }
-                
+             
                 logger.notice("Successfully extracted identity token from Apple credential")
                 logger.notice("Token prefix: \(String(idToken.prefix(15)))...")
                 
                 // Use the HomeViewModel method for sign-in
                 do {
-                    try await signInWithIdentityToken(idToken, shouldShowAdditionalInfoSheet: credential.email == nil)
+                    try await signInWithIdentityToken(idToken)
                     isAppleSignInLoading = false
                 } catch let clerkError {
                     logger.error("Clerk authentication error: \(clerkError.localizedDescription)")
@@ -534,21 +530,16 @@ struct SettingsSheet: View {
             }
         }
     }
-    
+
     /// Helper method for testing and code organization
     /// Signs in with an identity token and fetches user data
     @MainActor
-    func signInWithIdentityToken(_ idToken: String, shouldShowAdditionalInfoSheet: Bool) async throws {
+    func signInWithIdentityToken(_ idToken: String) async throws {
         // Use the HomeViewModel method for sign-in
         try await viewModel.signInWithApple(idToken: idToken)
         
         // After successful sign-in, fetch user data
         await viewModel.fetchUserData()
-        
-        // If we should show the additional info sheet, show it
-        if shouldShowAdditionalInfoSheet {
-            showAdditionalUserInfo = true
-        }
     }
 }
 
