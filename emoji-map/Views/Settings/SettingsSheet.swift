@@ -455,30 +455,6 @@ struct SettingsSheet: View {
                 logger.notice("Successfully obtained Apple ID credential")
                 logger.notice("User identifier: \(credential.user)")
                 
-                // Add detailed credential logging
-                logger.notice("=== Apple Credential Details ===")
-                logger.notice("User ID: \(credential.user)")
-                logger.notice("Email: \(credential.email ?? "nil")")
-                logger.notice("Full Name: \(credential.fullName?.description ?? "nil")")
-                logger.notice("Authorized Scopes: \(credential.authorizedScopes.map { $0.rawValue })")
-                logger.notice("Authorization Code: \(credential.authorizationCode?.base64EncodedString() ?? "nil")")
-                logger.notice("Identity Token: \(credential.identityToken?.base64EncodedString() ?? "nil")")
-                logger.notice("State: \(credential.state ?? "nil")")
-                logger.notice("=== End Credential Details ===")
-                
-                // Log credential details for debugging (excluding sensitive info)
-                if let email = credential.email {
-                    logger.notice("Apple credential includes email: \(email)")
-                } else {
-                    logger.notice("Apple credential does not include email")
-                }
-                
-                if let _ = credential.fullName {
-                    logger.notice("Apple credential includes full name")
-                } else {
-                    logger.notice("Apple credential does not include full name")
-                }
-                
                 // Verify that we have a valid nonce
                 guard currentNonce != nil else {
                     logger.error("Invalid state: A login callback was received, but no login request was sent.")
