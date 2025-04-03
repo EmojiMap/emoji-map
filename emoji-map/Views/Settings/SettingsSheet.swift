@@ -19,7 +19,8 @@ import CryptoKit
 struct SettingsSheet: View {
     // Logger
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.emoji-map", category: "SettingsSheet")
-    
+
+
     // ViewModel
     @ObservedObject var viewModel: HomeViewModel
     
@@ -34,7 +35,7 @@ struct SettingsSheet: View {
     
     // State for confirmation dialog
     @State private var showResetConfirmation = false
-        
+   
     // State for Apple Sign In
     @State private var isAppleSignInLoading = false
     @State private var appleSignInError: String? = nil
@@ -130,8 +131,8 @@ struct SettingsSheet: View {
                         .foregroundColor(.primary)
                         .padding(.bottom, 4)
                     
-                    if let user = clerk.user {
-                        // User is logged in
+                    // User is logged in
+                    if let _ = clerk.user, let email = userPreferences.userEmail {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Logged in as")
@@ -140,19 +141,9 @@ struct SettingsSheet: View {
                                 
                                 Spacer()
                                 
-                                if let email = user.emailAddresses.first?.emailAddress {
-                                    Text(email)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                } else if let username = user.username {
-                                    Text(username)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text(user.id)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
+                                 Text(email)
+                                     .font(.subheadline)
+                                     .foregroundColor(.secondary)
                             }
                         }
                         .padding(.vertical, 8)
@@ -267,6 +258,31 @@ struct SettingsSheet: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                             .padding(.bottom, 4)
+
+                        // Test Additional Info Sheet Button
+                        Button(action: {
+                            logger.notice("Test additional info sheet requested")
+                            viewModel.shouldShowAdditionalInfoSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                    .foregroundColor(.orange)
+                                Text("Test Additional Info Sheet")
+                                    .fontWeight(.medium)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 12)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                         
                         // Places Cache Info
                         VStack(alignment: .leading, spacing: 8) {
@@ -362,9 +378,6 @@ struct SettingsSheet: View {
             }
             .padding()
         }
-        .onAppear {
-            logger.notice("Settings sheet appeared")
-        }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(userPreferences: userPreferences, isFromSettings: true)
         }
@@ -391,6 +404,10 @@ struct SettingsSheet: View {
         } message: {
             Text("This will reset all settings to their default values, clear all cached data, and sign you out. This action cannot be undone.")
         }
+        .fullScreenCover(isPresented: $viewModel.shouldShowAdditionalInfoSheet) {
+            AdditionalUserInfo(viewModel: viewModel)
+        }
+
     }
     
     // MARK: - Nonce Generation
@@ -416,6 +433,7 @@ struct SettingsSheet: View {
             
             switch result {
             case .success(let authorization):
+                
                 // Access the Apple ID Credential
                 guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
                     logger.error("Unable to get credential of type ASAuthorizationAppleIDCredential")
@@ -424,22 +442,9 @@ struct SettingsSheet: View {
                     isAppleSignInLoading = false
                     return
                 }
-                
+  
                 logger.notice("Successfully obtained Apple ID credential")
                 logger.notice("User identifier: \(credential.user)")
-                
-                // Log credential details for debugging (excluding sensitive info)
-                if let email = credential.email {
-                    logger.notice("Apple credential includes email: \(email)")
-                } else {
-                    logger.notice("Apple credential does not include email")
-                }
-                
-                if let _ = credential.fullName {
-                    logger.notice("Apple credential includes full name")
-                } else {
-                    logger.notice("Apple credential does not include full name")
-                }
                 
                 // Verify that we have a valid nonce
                 guard currentNonce != nil else {
@@ -458,17 +463,18 @@ struct SettingsSheet: View {
                     isAppleSignInLoading = false
                     return
                 }
-                
+
                 logger.notice("Identity token data length: \(identityToken.count) bytes")
                 
                 guard let idToken = String(data: identityToken, encoding: .utf8) else {
                     logger.error("Unable to convert identity token to string")
+
                     appleSignInError = "Unable to process Apple ID token"
                     showAppleSignInError = true
                     isAppleSignInLoading = false
                     return
                 }
-                
+             
                 logger.notice("Successfully extracted identity token from Apple credential")
                 logger.notice("Token prefix: \(String(idToken.prefix(15)))...")
                 
@@ -491,16 +497,13 @@ struct SettingsSheet: View {
             }
         }
     }
-    
+
     /// Helper method for testing and code organization
     /// Signs in with an identity token and fetches user data
     @MainActor
     func signInWithIdentityToken(_ idToken: String) async throws {
         // Use the HomeViewModel method for sign-in
         try await viewModel.signInWithApple(idToken: idToken)
-        
-        // After successful sign-in, fetch user data
-        await viewModel.fetchUserData()
     }
 }
 

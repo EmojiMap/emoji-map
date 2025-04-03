@@ -36,13 +36,13 @@ struct PlaceDetailsResponse: Codable {
 
 // Structure for place details
 struct PlaceDetails: Codable {
-    let name: String
+    let id: String
     let reviews: [Review]?
-    let rating: Double?
+    let googleRating: Double?
     let priceLevel: Int?
     let userRatingCount: Int?
     let openNow: Bool?
-    let displayName: String?
+    let name: String?
     let primaryTypeDisplayName: String?
     let takeout: Bool?
     let delivery: Bool?
@@ -57,7 +57,9 @@ struct PlaceDetails: Codable {
     let goodForGroups: Bool?
     let allowsDogs: Bool?
     let restroom: Bool?
-    let paymentOptions: PaymentOptions?
+    let acceptsCreditCards: Bool?
+    let acceptsDebitCards: Bool?
+    let acceptsCashOnly: Bool?
     let generativeSummary: String?
     let isFree: Bool?
     
@@ -71,7 +73,7 @@ struct PlaceDetails: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Required field with fallback
-        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        id = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
         
         // Optional fields
         do {
@@ -82,14 +84,14 @@ struct PlaceDetails: Codable {
         }
         
         do {
-            rating = try container.decodeIfPresent(Double.self, forKey: .rating)
+            googleRating = try container.decodeIfPresent(Double.self, forKey: .googleRating)
         } catch {
             Self.logger.error("Error decoding rating: \(error.localizedDescription)")
             // Try to decode as Int and convert to Double if that works
-            if let intRating = try? container.decodeIfPresent(Int.self, forKey: .rating) {
-                rating = Double(intRating)
+            if let intRating = try? container.decodeIfPresent(Int.self, forKey: .googleRating) {
+                googleRating = Double(intRating)
             } else {
-                rating = nil
+                googleRating = nil
             }
         }
         
@@ -108,7 +110,7 @@ struct PlaceDetails: Codable {
         
         userRatingCount = try container.decodeIfPresent(Int.self, forKey: .userRatingCount)
         openNow = try container.decodeIfPresent(Bool.self, forKey: .openNow)
-        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
         primaryTypeDisplayName = try container.decodeIfPresent(String.self, forKey: .primaryTypeDisplayName)
         takeout = try container.decodeIfPresent(Bool.self, forKey: .takeout)
         delivery = try container.decodeIfPresent(Bool.self, forKey: .delivery)
@@ -123,87 +125,35 @@ struct PlaceDetails: Codable {
         goodForGroups = try container.decodeIfPresent(Bool.self, forKey: .goodForGroups)
         allowsDogs = try container.decodeIfPresent(Bool.self, forKey: .allowsDogs)
         restroom = try container.decodeIfPresent(Bool.self, forKey: .restroom)
-        
-        do {
-            paymentOptions = try container.decodeIfPresent(PaymentOptions.self, forKey: .paymentOptions)
-        } catch {
-            Self.logger.error("Error decoding paymentOptions: \(error.localizedDescription)")
-            paymentOptions = nil
-        }
-        
+        acceptsCreditCards = try container.decodeIfPresent(Bool.self, forKey: .acceptsCreditCards)
+        acceptsDebitCards = try container.decodeIfPresent(Bool.self, forKey: .acceptsDebitCards)
+        acceptsCashOnly = try container.decodeIfPresent(Bool.self, forKey: .acceptsCashOnly)
         generativeSummary = try container.decodeIfPresent(String.self, forKey: .generativeSummary)
         isFree = try container.decodeIfPresent(Bool.self, forKey: .isFree)
     }
     
     // Review structure
     struct Review: Codable, Identifiable {
-        let name: String
+        let id: String
+        let placeId: String
         let relativePublishTimeDescription: String
         let rating: Int
-        let text: TextContent
-        let originalText: TextContent?
-        
-        // Use the name as the ID
-        var id: String { name }
+        let text: String
         
         // Logger for debugging
         private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.emoji-map", category: "Review")
         
-        // Text content structure
-        struct TextContent: Codable {
-            var text: String
-            let languageCode: String?
-            
-            // Logger for debugging
-            private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.emoji-map", category: "TextContent")
-            
-            // Custom decoding to handle potential missing fields
-            init(from decoder: Decoder) throws {
-                Self.logger.notice("Starting to decode TextContent")
-                
-                // Try to decode as a container first
-                do {
-                    let container = try decoder.container(keyedBy: CodingKeys.self)
-                    text = try container.decodeIfPresent(String.self, forKey: .text) ?? ""
-                    languageCode = try container.decodeIfPresent(String.self, forKey: .languageCode)
-                } catch {
-                    Self.logger.error("Error decoding TextContent as container: \(error.localizedDescription)")
-                    
-                    // If that fails, try to decode as a string directly
-                    do {
-                        let singleValue = try decoder.singleValueContainer()
-                        text = try singleValue.decode(String.self)
-                        languageCode = nil
-                    } catch {
-                        Self.logger.error("Error decoding TextContent as string: \(error.localizedDescription)")
-                        // Last resort fallback
-                        text = ""
-                        languageCode = nil
-                    }
-                }
-            }
-            
-            // Manual initializer for creating instances directly
-            init(text: String, languageCode: String? = nil) {
-                self.text = text
-                self.languageCode = languageCode
-            }
-            
-            private enum CodingKeys: String, CodingKey {
-                case text
-                case languageCode
-            }
-        }
-        
-        // Custom decoding to handle potential missing fields
+        // Custom decoding to handle potential issues
         init(from decoder: Decoder) throws {
             Self.logger.notice("Starting to decode Review")
             
             let container = try decoder.container(keyedBy: CodingKeys.self)
             
-            // Required fields with fallbacks
-            name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
-            relativePublishTimeDescription = try container.decodeIfPresent(String.self, forKey: .relativePublishTimeDescription) ?? ""
+            // Required fields
+            id = try container.decode(String.self, forKey: .id)
+            placeId = try container.decode(String.self, forKey: .placeId)
+            relativePublishTimeDescription = try container.decode(String.self, forKey: .relativePublishTimeDescription)
+            text = try container.decode(String.self, forKey: .text)
             
             // Handle rating with fallback
             do {
@@ -217,66 +167,23 @@ struct PlaceDetails: Codable {
                     rating = 0
                 }
             }
-            
-            // Handle text content with multiple possible formats
-            do {
-                text = try container.decode(TextContent.self, forKey: .text)
-            } catch {
-                Self.logger.error("Error decoding text: \(error.localizedDescription)")
-                
-                // Try alternative approaches
-                if let textString = try? container.decode(String.self, forKey: .text) {
-                    text = TextContent(text: textString)
-                } else {
-                    text = TextContent(text: "")
-                }
-            }
-            
-            // Handle optional originalText
-            do {
-                originalText = try container.decodeIfPresent(TextContent.self, forKey: .originalText)
-            } catch {
-                Self.logger.error("Error decoding originalText: \(error.localizedDescription)")
-                originalText = nil
-            }
         }
         
         private enum CodingKeys: String, CodingKey {
-            case name
+            case id
+            case placeId
             case relativePublishTimeDescription
             case rating
             case text
-            case originalText
         }
         
         // Manual initializer for testing or creating reviews programmatically
-        init(name: String, relativePublishTimeDescription: String, rating: Int, text: TextContent, originalText: TextContent? = nil) {
-            self.name = name
+        init(id: String, placeId: String, relativePublishTimeDescription: String, rating: Int, text: String) {
+            self.id = id
+            self.placeId = placeId
             self.relativePublishTimeDescription = relativePublishTimeDescription
             self.rating = rating
             self.text = text
-            self.originalText = originalText
-        }
-    }
-    
-    // Payment options structure
-    struct PaymentOptions: Codable {
-        let acceptsCreditCards: Bool?
-        let acceptsDebitCards: Bool?
-        let acceptsCashOnly: Bool?
-        
-        // Logger for debugging
-        private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.emoji-map", category: "PaymentOptions")
-        
-        // Custom decoding to handle potential issues
-        init(from decoder: Decoder) throws {
-            Self.logger.notice("Starting to decode PaymentOptions")
-            
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            
-            acceptsCreditCards = try container.decodeIfPresent(Bool.self, forKey: .acceptsCreditCards)
-            acceptsDebitCards = try container.decodeIfPresent(Bool.self, forKey: .acceptsDebitCards)
-            acceptsCashOnly = try container.decodeIfPresent(Bool.self, forKey: .acceptsCashOnly)
         }
     }
 } 

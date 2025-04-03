@@ -29,7 +29,6 @@ struct Home: View {
         if viewModel.hasNetworkDependentFilters || viewModel.showFavoritesOnly || 
            (viewModel.minimumRating > 0 && viewModel.useLocalRatings) ||
            (!viewModel.isAllCategoriesMode && !viewModel.selectedCategoryKeys.isEmpty) {
-            logger.notice("Using filtered places list for display (filters or category selection active)")
             
             // Log more details when we have no places to display
             if viewModel.filteredPlaces.isEmpty {
@@ -50,7 +49,7 @@ struct Home: View {
                     
                     // Log a few sample coffee places
                     for (index, place) in coffeePlaces.prefix(3).enumerated() {
-                        logger.notice("🔍 Coffee place \(index+1): \(place.displayName ?? "Unknown") - Emoji: '\(place.emoji)'")
+                        logger.notice("🔍 Coffee place \(index+1): \(place.name ?? "Unknown") - Emoji: '\(place.emoji)'")
                     }
                 }
             }
@@ -58,7 +57,6 @@ struct Home: View {
             return viewModel.filteredPlaces
         } else {
             // If no filters are active, use the regular places list
-            logger.notice("Using regular places list for display (no filters active)")
             return viewModel.places
         }
     }

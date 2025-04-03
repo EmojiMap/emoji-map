@@ -81,7 +81,7 @@ class HomeViewModel: ObservableObject {
     @Published var isSettingsSheetPresented = false
     @Published var selectedPlace: Place?
     @Published var isPlaceDetailSheetPresented = false
-    
+    @Published var shouldShowAdditionalInfoSheet = false
     // User data
     @Published var currentUser: AppUser?
     @Published var isLoadingUser = false
@@ -123,7 +123,7 @@ class HomeViewModel: ObservableObject {
     // Services
     let placesService: PlacesServiceProtocol
     let userPreferences: UserPreferences
-    
+
     // Logger
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.emoji-map", category: "HomeViewModel")
     
@@ -134,7 +134,6 @@ class HomeViewModel: ObservableObject {
     var allPriceLevelsSelected: Bool {
         // If no price levels are selected, it means we're not filtering by price level
         if self.selectedPriceLevels.isEmpty {
-            logger.notice("No price levels selected - treating as all selected")
             return true
         }
         
@@ -145,7 +144,6 @@ class HomeViewModel: ObservableObject {
             self.selectedPriceLevels.contains(3) &&
             self.selectedPriceLevels.contains(4)
         
-        logger.notice("Price level selection state: \(allSelected ? "all selected" : "partial selection")")
         return allSelected
     }
     
@@ -325,7 +323,6 @@ class HomeViewModel: ObservableObject {
     /// Fetch user data from the API
     func fetchUserData(networkService: NetworkServiceProtocol? = nil, clerkService: ClerkService? = nil) async {
         logger.notice("Checking for authenticated user")
-        
         // Get Clerk instance or use the provided one
         let clerk = clerkService ?? DefaultClerkService()
         
@@ -380,7 +377,7 @@ class HomeViewModel: ObservableObject {
                 )
                 
                 // Log the raw response structure
-                logger.notice("User response received with user ID: \(userResponse.user.id)")
+                logger.notice("User response received with user ID: \(userResponse.user.id) \(userResponse.user.email)")
                 
                 // Convert the response to a User model
                 let user = userResponse.toUser
@@ -434,10 +431,11 @@ class HomeViewModel: ObservableObject {
             }
         } else {
             // User is not authenticated, skip the request
-            logger.notice("User is not authenticated with Clerk. Skipping user data request.")
-            
             // Clear any existing user data
             currentUser = nil
+            isAdmin = false
+            
+            logger.info("user is not authenticated with clerk")
         }
     }
     
@@ -452,6 +450,14 @@ class HomeViewModel: ObservableObject {
             
             // Fetch user data which will sync favorites with API
             await fetchUserData()
+
+            // fetch updates user in userPreferences
+            if (
+                userPreferences.userEmail?.contains("@privaterelay") == true
+            ) {
+                self.shouldShowAdditionalInfoSheet = true
+                logger.notice("Showing additional info sheet due to Apple email")
+            }
             
             return
         } catch let clerkError {
@@ -474,7 +480,6 @@ class HomeViewModel: ObservableObject {
                 var random: UInt8 = 0
                 let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
                 if errorCode != errSecSuccess {
-                    logger.error("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
                     fatalError("Unable to generate random nonce: \(errorCode)")
                 }
                 return random
@@ -588,7 +593,6 @@ class HomeViewModel: ObservableObject {
         
         guard let location = location else {
             errorMessage = "Unable to determine your location"
-            logger.error("Refresh failed: No location available")
             return
         }
         
@@ -701,7 +705,6 @@ class HomeViewModel: ObservableObject {
         
         guard let location = location else {
             errorMessage = "Unable to determine your location"
-            logger.error("Apply filters failed: No location available")
             return
         }
         
@@ -732,7 +735,8 @@ class HomeViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         
-        do {
+        do {       
+            
             // If all price levels are selected or none are selected, treat it as if no price level filter is applied
             let priceLevelsToUse: [Int]?
             if self.selectedPriceLevels.isEmpty || self.allPriceLevelsSelected {
@@ -768,11 +772,12 @@ class HomeViewModel: ObservableObject {
                 maxResultCount: nil,
                 minimumRating: minimumRatingToUse
             )
-                        
+
             let response: PlacesResponse = try await placesService.fetchWithFilters(
                 location: location,
                 requestBody: requestBody
             )
+
             
             // Always merge into main places collection to maintain a complete set
             mergePlaces(response.results)
@@ -786,8 +791,16 @@ class HomeViewModel: ObservableObject {
             // Ensure loading indicator is turned off
             self.isLoading = false
         } catch {
-            logger.error("Failed to fetch places with filters: \(error.localizedDescription)")
-            self.errorMessage = "Failed to fetch places: \(error.localizedDescription)"
+            // Log the error
+            logger.error("Error fetching places with filters: \(error.localizedDescription)")
+            
+            // Set error message for the user
+            if let placesError = error as? PlacesServiceError {
+                self.errorMessage = placesError.errorDescription
+            } else {
+                self.errorMessage = "Failed to fetch places: \(error.localizedDescription)"
+            }
+            
             self.isLoading = false
         }
     }
@@ -865,7 +878,6 @@ class HomeViewModel: ObservableObject {
                 }
                 
                 self.errorMessage = "Failed to load places by categories: \(error.localizedDescription)"
-                logger.error("Error fetching places by categories: \(error.localizedDescription)")
                 isFetchingCategories = false
             }
         }
@@ -883,7 +895,7 @@ class HomeViewModel: ObservableObject {
         }
         
         var categoryPlaceIdsSet = categoryPlaceIds[categoryKey] ?? []
-        let countBefore = categoryPlaceIdsSet.count
+        _ = categoryPlaceIdsSet.count
                 
         // Filter to places that contain this emoji category
         let placesWithEmoji = newPlaces.filter { place in
@@ -905,7 +917,7 @@ class HomeViewModel: ObservableObject {
     /// Merge new places into the network filtered collection
     private func mergeNetworkFilteredPlaces(_ newPlaces: [Place]) {
         // Count before adding
-        let countBefore = networkFilteredPlaceIds.count
+        _ = networkFilteredPlaceIds.count
         
         // Add the IDs of the new places
         for place in newPlaces {
@@ -931,7 +943,6 @@ class HomeViewModel: ObservableObject {
         
         // Apply favorites filter if enabled
         if showFavoritesOnly {
-            let beforeFavCount = filteredIds.count
             filteredIds = filteredIds.filter { userPreferences.isFavorite(placeId: $0) }
         }
         
@@ -943,8 +954,6 @@ class HomeViewModel: ObservableObject {
                     result.formUnion(categoryIds)
                 }
             }
-            
-            let beforeCatCount = filteredIds.count
             
             // If we have precomputed category matches, use them
             if !categoryMatchingIds.isEmpty {
@@ -972,16 +981,14 @@ class HomeViewModel: ObservableObject {
                     let userRating = userPreferences.getRating(placeId: placeId)
                     return Double(userRating) >= Double(self.minimumRating)
                 }
-                logger.notice("Filtered to \(filteredIds.count) place IDs with local rating >= \(self.minimumRating)")
             } else if !hasNetworkDependentFilters {
                 // Use Google ratings only for local filtering (if network filtering isn't in use)
                 filteredIds = filteredIds.filter { placeId in
-                    guard let place = allPlacesById[placeId], let rating = place.rating else {
+                    guard let place = allPlacesById[placeId], let rating = place.googleRating else {
                         return false
                     }
                     return rating >= Double(self.minimumRating)
                 }
-                logger.notice("Filtered to \(filteredIds.count) place IDs with Google rating >= \(self.minimumRating)")
             }
         }
         
@@ -996,7 +1003,6 @@ class HomeViewModel: ObservableObject {
                 // If no price level is specified, include it if price level 1 is selected
                 return self.selectedPriceLevels.contains(1)
             }
-            logger.notice("Filtered to \(filteredIds.count) place IDs with selected price levels")
         }
         
         // Convert filtered IDs back to Place objects
@@ -1004,29 +1010,23 @@ class HomeViewModel: ObservableObject {
         
         // Set the filtered places
         filteredPlaces = newFilteredPlaces
-        
-        // Log final count
-        logger.notice("Final filteredPlaces count: \(self.filteredPlaces.count)")
     }
     
     /// Set all price levels (1-4) as selected
     func selectAllPriceLevels() {
         self.selectedPriceLevels = [1, 2, 3, 4]
-        logger.notice("All price levels selected: \(self.selectedPriceLevels.sorted())")
         updateFilteredPlaces()
     }
     
     /// Clear all price levels and select only the specified level
     func selectOnlyPriceLevel(_ level: Int) {
         guard (1...4).contains(level) else {
-            logger.error("Invalid price level: \(level)")
             return
         }
         
         // Clear all selections and select only the specified level
         self.selectedPriceLevels.removeAll()
         self.selectedPriceLevels.insert(level)
-        logger.notice("Selected only price level \(level)")
         
         // Update filtered places to reflect the new selection
         updateFilteredPlaces()
@@ -1036,17 +1036,13 @@ class HomeViewModel: ObservableObject {
     @MainActor
     public func recommendRandomPlace() {
         if filteredPlaces.isEmpty {
-            logger.notice("Cannot recommend a place: No filtered places available")
             return
         }
         
         // Select a random place from the filtered places
         if let randomPlace = filteredPlaces.randomElement() {
-            logger.notice("Recommending random place: \(randomPlace.displayName ?? "Unknown")")
             selectedPlace = randomPlace
             isPlaceDetailSheetPresented = true
-        } else {
-            logger.error("Failed to select a random place even though filtered places is not empty")
         }
     }
     
@@ -1054,7 +1050,6 @@ class HomeViewModel: ObservableObject {
     @MainActor
     public func updateFilteredPlacesAfterRatingChange() {
         if useLocalRatings && minimumRating > 0 {
-            logger.notice("Manually updating filtered places after rating change")
             updateFilteredPlaces()
         }
     }
@@ -1117,13 +1112,6 @@ class HomeViewModel: ObservableObject {
         // Get the search radius based on the current viewport
         let searchRadius = getSearchRadius()
         
-        // Log if we're bypassing cache due to being super zoomed in
-        if isSuperZoomedIn {
-            logger.notice("Super zoomed in mode - adding bypassCache parameter to request")
-        }
-        
-        logger.notice("Fetching nearby places at \(coordinate.latitude), \(coordinate.longitude), radius: \(searchRadius)m")
-        
         // Create a new fetch task
         fetchTask = Task {
             do {
@@ -1135,10 +1123,10 @@ class HomeViewModel: ObservableObject {
                 
                 // Check if the task was cancelled
                 if Task.isCancelled { return }
+
                 
                 // Merge new places with existing places instead of replacing
                 mergePlaces(fetchedPlaces)
-                logger.notice("Fetched \(fetchedPlaces.count) places, total places now: \(self.allPlaces.count)")
                 
                 // If we have network-dependent filters, fetch filtered places
                 if hasNetworkDependentFilters {
@@ -1162,28 +1150,108 @@ class HomeViewModel: ObservableObject {
                     isLoading = false
                 }
                 
-                errorMessage = "Failed to load places: \(error.localizedDescription)"
-                logger.error("Error fetching places: \(error.localizedDescription)")
+                // Log the error
+                logger.error("Error fetching nearby places: \(error.localizedDescription)")
+                
+                // Set error message for the user
+                if let placesError = error as? PlacesServiceError {
+                    errorMessage = placesError.errorDescription
+                } else {
+                    errorMessage = "Failed to load places: \(error.localizedDescription)"
+                }
             }
         }
     }
     
     /// Merge new places with existing places, avoiding duplicates
     private func mergePlaces(_ newPlaces: [Place]) {
-        // Count before adding
-        let countBefore = allPlacesById.count
-        
-        // Add or update places
+        // Add or update places, preserving existing details if available
         for place in newPlaces {
-            allPlacesById[place.id] = place
-        }
-        
-        // Log how many new places were added
-        let addedCount = allPlacesById.count - countBefore
-        if addedCount > 0 {
-            logger.notice("Added \(addedCount) new unique places, total now: \(self.allPlacesById.count)")
-        } else {
-            logger.notice("No new unique places to add, total remains: \(self.allPlacesById.count)")
+            if let existingPlace = allPlacesById[place.id] {
+                // Create a new place with merged data
+                var mergedPlace = place
+                
+                // Preserve existing details that aren't in the new place
+                if mergedPlace.name == nil {
+                    mergedPlace.name = existingPlace.name
+                }
+                if mergedPlace.googleRating == nil {
+                    mergedPlace.googleRating = existingPlace.googleRating
+                }
+                if mergedPlace.reviews == nil {
+                    mergedPlace.reviews = existingPlace.reviews
+                }
+                if mergedPlace.priceLevel == nil {
+                    mergedPlace.priceLevel = existingPlace.priceLevel
+                }
+                if mergedPlace.userRatingCount == nil {
+                    mergedPlace.userRatingCount = existingPlace.userRatingCount
+                }
+                if mergedPlace.openNow == nil {
+                    mergedPlace.openNow = existingPlace.openNow
+                }
+                if mergedPlace.primaryTypeDisplayName == nil {
+                    mergedPlace.primaryTypeDisplayName = existingPlace.primaryTypeDisplayName
+                }
+                if mergedPlace.takeout == nil {
+                    mergedPlace.takeout = existingPlace.takeout
+                }
+                if mergedPlace.delivery == nil {
+                    mergedPlace.delivery = existingPlace.delivery
+                }
+                if mergedPlace.dineIn == nil {
+                    mergedPlace.dineIn = existingPlace.dineIn
+                }
+                if mergedPlace.editorialSummary == nil {
+                    mergedPlace.editorialSummary = existingPlace.editorialSummary
+                }
+                if mergedPlace.outdoorSeating == nil {
+                    mergedPlace.outdoorSeating = existingPlace.outdoorSeating
+                }
+                if mergedPlace.liveMusic == nil {
+                    mergedPlace.liveMusic = existingPlace.liveMusic
+                }
+                if mergedPlace.menuForChildren == nil {
+                    mergedPlace.menuForChildren = existingPlace.menuForChildren
+                }
+                if mergedPlace.servesDessert == nil {
+                    mergedPlace.servesDessert = existingPlace.servesDessert
+                }
+                if mergedPlace.servesCoffee == nil {
+                    mergedPlace.servesCoffee = existingPlace.servesCoffee
+                }
+                if mergedPlace.goodForChildren == nil {
+                    mergedPlace.goodForChildren = existingPlace.goodForChildren
+                }
+                if mergedPlace.goodForGroups == nil {
+                    mergedPlace.goodForGroups = existingPlace.goodForGroups
+                }
+                if mergedPlace.allowsDogs == nil {
+                    mergedPlace.allowsDogs = existingPlace.allowsDogs
+                }
+                if mergedPlace.restroom == nil {
+                    mergedPlace.restroom = existingPlace.restroom
+                }
+                if mergedPlace.acceptsCreditCards == nil {
+                    mergedPlace.acceptsCreditCards = existingPlace.acceptsCreditCards
+                }
+                if mergedPlace.acceptsDebitCards == nil {
+                    mergedPlace.acceptsDebitCards = existingPlace.acceptsDebitCards
+                }
+                if mergedPlace.acceptsCashOnly == nil {
+                    mergedPlace.acceptsCashOnly = existingPlace.acceptsCashOnly
+                }
+                if mergedPlace.generativeSummary == nil {
+                    mergedPlace.generativeSummary = existingPlace.generativeSummary
+                }
+                if mergedPlace.isFree == nil {
+                    mergedPlace.isFree = existingPlace.isFree
+                }
+                
+                allPlacesById[place.id] = mergedPlace
+            } else {
+                allPlacesById[place.id] = place
+            }
         }
     }
     
@@ -1193,13 +1261,11 @@ class HomeViewModel: ObservableObject {
         networkFilteredPlaceIds.removeAll()
         categoryPlaceIds.removeAll()
         filteredPlaces.removeAll()
-        logger.notice("Cleared all places")
     }
     
     // New helper method to reset network filtered places
     private func resetNetworkFilteredPlaces() {
         networkFilteredPlaceIds.removeAll()
-        logger.notice("Reset network filtered place IDs")
     }
     
     // Initialize grid view with current category selections
@@ -1251,6 +1317,57 @@ class HomeViewModel: ObservableObject {
             }
             fetchPlacesByCategories()
         }
+    }
+    
+    /// Update user information
+    /// - Parameters:
+    ///   - email: User's email
+    ///   - firstName: User's first name (optional)
+    ///   - lastName: User's last name (optional)
+    ///   - networkService: Optional network service for testing
+    ///   - clerkService: Optional clerk service for testing
+    func updateUserInfo(
+        email: String,
+        firstName: String = "",
+        lastName: String = "",
+        networkService: NetworkServiceProtocol? = nil,
+        clerkService: ClerkService? = nil
+    ) async throws {
+        logger.notice("Updating user information")
+        
+        // Get Clerk instance or use the provided one
+        let clerk = clerkService ?? DefaultClerkService()
+        
+        // Get the network service from the service container or use the provided one
+        let networkService = networkService ?? ServiceContainer.shared.networkService
+        
+        // Get the session token for authentication
+        guard let sessionToken = try await clerk.getSessionToken() else {
+            logger.error("No session token available for authentication")
+            throw NetworkError.unauthorized
+        }
+        
+        // Create request body
+        let requestBody = UserUpdateRequest(
+            email: email,
+            firstName: firstName,
+            lastName: lastName
+        )
+   
+        logger.notice("Making PATCH request to /api/user with Bearer token")
+        
+        // Make the request to update user info
+        let _: UserUpdateResponse = try await networkService.patch(
+            endpoint: .userUpdate,
+            body: requestBody,
+            queryItems: nil,
+            authToken: sessionToken
+        )
+                
+        // After successful update, fetch updated user data
+        await fetchUserData(networkService: networkService, clerkService: clerk)
+
+        logger.notice("User information updated successfully")
     }
     
 }

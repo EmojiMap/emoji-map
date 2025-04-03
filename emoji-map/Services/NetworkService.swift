@@ -98,6 +98,7 @@ enum APIEndpoint {
     case placePhotos
     case user
     case userSync
+    case userUpdate
     case favorite
     case rating
     
@@ -113,6 +114,8 @@ enum APIEndpoint {
             return "api/user"
         case .userSync:
             return "api/user/sync"
+        case .userUpdate:
+            return "api/user"
         case .favorite:
             return "api/places/favorite"
         case .rating:
@@ -183,11 +186,6 @@ class DefaultHTTPClient: HTTPClient {
                 let error = NetworkError.from(statusCode: httpResponse.statusCode, data: data)
                 logger.error("Server returned error: \(error.localizedDescription)")
                 throw error
-            }
-            
-            // Log the raw response for debugging (limited to first 200 characters)
-            if let jsonString = String(data: data, encoding: .utf8) {
-                logger.notice("Raw response: \(jsonString.prefix(200))...")
             }
             
             return data
@@ -355,6 +353,7 @@ protocol NetworkServiceProtocol {
     func fetchWithPublisher<T: Decodable>(endpoint: APIEndpoint, queryItems: [URLQueryItem]?, authToken: String?) -> AnyPublisher<T, Error>
     func post<T: Decodable, U: Encodable>(endpoint: APIEndpoint, body: U, queryItems: [URLQueryItem]?, authToken: String?) async throws -> T
     func put<T: Decodable, U: Encodable>(endpoint: APIEndpoint, body: U, queryItems: [URLQueryItem]?, authToken: String?) async throws -> T
+    func patch<T: Decodable, U: Encodable>(endpoint: APIEndpoint, body: U, queryItems: [URLQueryItem]?, authToken: String?) async throws -> T
     func delete<T: Decodable>(endpoint: APIEndpoint, queryItems: [URLQueryItem]?, authToken: String?) async throws -> T
 }
 
@@ -410,6 +409,18 @@ class NetworkService: NetworkServiceProtocol {
         return try await httpClient.sendRequest(request)
     }
     
+    /// Patch data to an API endpoint using async/await
+    /// - Parameters:
+    ///   - endpoint: The API endpoint to patch
+    ///   - body: The request body
+    ///   - queryItems: Optional query parameters
+    ///   - authToken: Optional authentication token
+    /// - Returns: Decoded response of type T
+    func patch<T: Decodable, U: Encodable>(endpoint: APIEndpoint, body: U, queryItems: [URLQueryItem]? = nil, authToken: String? = nil) async throws -> T {
+        let request: URLRequest = try createRequest(for: endpoint, method: .patch, body: body, queryItems: queryItems, authToken: authToken)
+        return try await httpClient.sendRequest(request)
+    }
+    
     /// Delete data from an API endpoint using async/await
     /// - Parameters:
     ///   - endpoint: The API endpoint to delete from
@@ -447,11 +458,6 @@ class NetworkService: NetworkServiceProtocol {
                         let error = NetworkError.from(statusCode: httpResponse.statusCode, data: data)
                         self.logger.error("Server returned error: \(error.localizedDescription)")
                         throw error
-                    }
-                    
-                    // Log the raw response for debugging
-                    if let jsonString = String(data: data, encoding: .utf8) {
-                        self.logger.notice("Raw response: \(jsonString.prefix(200))...")
                     }
                     
                     return data
@@ -610,6 +616,20 @@ class NetworkService: NetworkServiceProtocol {
 }
 
 // MARK: - Request Types
+
+/// Response type for user update endpoint
+struct UserUpdateResponse: Codable {
+    let message: String
+    let userId: String
+    let timestamp: String
+}
+
+/// Request type for updating user information
+struct UserUpdateRequest: Codable {
+    let email: String
+    let firstName: String
+    let lastName: String
+}
 
 /// Request type for syncing user data
 struct UserSyncRequest: Codable {
