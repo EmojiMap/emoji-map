@@ -373,7 +373,8 @@ class HomeViewModel: ObservableObject {
                     endpoint: .userSync,
                     body: requestBody,
                     queryItems: nil,
-                    authToken: sessionToken
+                    authToken: sessionToken,
+                    userId: userId
                 )
                 
                 // Log the raw response structure
@@ -1361,7 +1362,8 @@ class HomeViewModel: ObservableObject {
             endpoint: .userUpdate,
             body: requestBody,
             queryItems: nil,
-            authToken: sessionToken
+            authToken: sessionToken,
+            userId: clerk.userId
         )
                 
         // After successful update, fetch updated user data
