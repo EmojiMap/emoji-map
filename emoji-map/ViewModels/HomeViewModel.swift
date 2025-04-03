@@ -732,7 +732,8 @@ class HomeViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         
-        do {
+        do {       
+            
             // If all price levels are selected or none are selected, treat it as if no price level filter is applied
             let priceLevelsToUse: [Int]?
             if self.selectedPriceLevels.isEmpty || self.allPriceLevelsSelected {
@@ -768,11 +769,12 @@ class HomeViewModel: ObservableObject {
                 maxResultCount: nil,
                 minimumRating: minimumRatingToUse
             )
-                        
+
             let response: PlacesResponse = try await placesService.fetchWithFilters(
                 location: location,
                 requestBody: requestBody
             )
+
             
             // Always merge into main places collection to maintain a complete set
             mergePlaces(response.results)
@@ -786,7 +788,16 @@ class HomeViewModel: ObservableObject {
             // Ensure loading indicator is turned off
             self.isLoading = false
         } catch {
-            self.errorMessage = "Failed to fetch places: \(error.localizedDescription)"
+            // Log the error
+            logger.error("Error fetching places with filters: \(error.localizedDescription)")
+            
+            // Set error message for the user
+            if let placesError = error as? PlacesServiceError {
+                self.errorMessage = placesError.errorDescription
+            } else {
+                self.errorMessage = "Failed to fetch places: \(error.localizedDescription)"
+            }
+            
             self.isLoading = false
         }
     }
@@ -970,7 +981,7 @@ class HomeViewModel: ObservableObject {
             } else if !hasNetworkDependentFilters {
                 // Use Google ratings only for local filtering (if network filtering isn't in use)
                 filteredIds = filteredIds.filter { placeId in
-                    guard let place = allPlacesById[placeId], let rating = place.rating else {
+                    guard let place = allPlacesById[placeId], let rating = place.googleRating else {
                         return false
                     }
                     return rating >= Double(self.minimumRating)
@@ -1109,6 +1120,7 @@ class HomeViewModel: ObservableObject {
                 
                 // Check if the task was cancelled
                 if Task.isCancelled { return }
+
                 
                 // Merge new places with existing places instead of replacing
                 mergePlaces(fetchedPlaces)
@@ -1135,16 +1147,108 @@ class HomeViewModel: ObservableObject {
                     isLoading = false
                 }
                 
-                errorMessage = "Failed to load places: \(error.localizedDescription)"
+                // Log the error
+                logger.error("Error fetching nearby places: \(error.localizedDescription)")
+                
+                // Set error message for the user
+                if let placesError = error as? PlacesServiceError {
+                    errorMessage = placesError.errorDescription
+                } else {
+                    errorMessage = "Failed to load places: \(error.localizedDescription)"
+                }
             }
         }
     }
     
     /// Merge new places with existing places, avoiding duplicates
     private func mergePlaces(_ newPlaces: [Place]) {
-        // Add or update places
+        // Add or update places, preserving existing details if available
         for place in newPlaces {
-            allPlacesById[place.id] = place
+            if let existingPlace = allPlacesById[place.id] {
+                // Create a new place with merged data
+                var mergedPlace = place
+                
+                // Preserve existing details that aren't in the new place
+                if mergedPlace.name == nil {
+                    mergedPlace.name = existingPlace.name
+                }
+                if mergedPlace.googleRating == nil {
+                    mergedPlace.googleRating = existingPlace.googleRating
+                }
+                if mergedPlace.reviews == nil {
+                    mergedPlace.reviews = existingPlace.reviews
+                }
+                if mergedPlace.priceLevel == nil {
+                    mergedPlace.priceLevel = existingPlace.priceLevel
+                }
+                if mergedPlace.userRatingCount == nil {
+                    mergedPlace.userRatingCount = existingPlace.userRatingCount
+                }
+                if mergedPlace.openNow == nil {
+                    mergedPlace.openNow = existingPlace.openNow
+                }
+                if mergedPlace.primaryTypeDisplayName == nil {
+                    mergedPlace.primaryTypeDisplayName = existingPlace.primaryTypeDisplayName
+                }
+                if mergedPlace.takeout == nil {
+                    mergedPlace.takeout = existingPlace.takeout
+                }
+                if mergedPlace.delivery == nil {
+                    mergedPlace.delivery = existingPlace.delivery
+                }
+                if mergedPlace.dineIn == nil {
+                    mergedPlace.dineIn = existingPlace.dineIn
+                }
+                if mergedPlace.editorialSummary == nil {
+                    mergedPlace.editorialSummary = existingPlace.editorialSummary
+                }
+                if mergedPlace.outdoorSeating == nil {
+                    mergedPlace.outdoorSeating = existingPlace.outdoorSeating
+                }
+                if mergedPlace.liveMusic == nil {
+                    mergedPlace.liveMusic = existingPlace.liveMusic
+                }
+                if mergedPlace.menuForChildren == nil {
+                    mergedPlace.menuForChildren = existingPlace.menuForChildren
+                }
+                if mergedPlace.servesDessert == nil {
+                    mergedPlace.servesDessert = existingPlace.servesDessert
+                }
+                if mergedPlace.servesCoffee == nil {
+                    mergedPlace.servesCoffee = existingPlace.servesCoffee
+                }
+                if mergedPlace.goodForChildren == nil {
+                    mergedPlace.goodForChildren = existingPlace.goodForChildren
+                }
+                if mergedPlace.goodForGroups == nil {
+                    mergedPlace.goodForGroups = existingPlace.goodForGroups
+                }
+                if mergedPlace.allowsDogs == nil {
+                    mergedPlace.allowsDogs = existingPlace.allowsDogs
+                }
+                if mergedPlace.restroom == nil {
+                    mergedPlace.restroom = existingPlace.restroom
+                }
+                if mergedPlace.acceptsCreditCards == nil {
+                    mergedPlace.acceptsCreditCards = existingPlace.acceptsCreditCards
+                }
+                if mergedPlace.acceptsDebitCards == nil {
+                    mergedPlace.acceptsDebitCards = existingPlace.acceptsDebitCards
+                }
+                if mergedPlace.acceptsCashOnly == nil {
+                    mergedPlace.acceptsCashOnly = existingPlace.acceptsCashOnly
+                }
+                if mergedPlace.generativeSummary == nil {
+                    mergedPlace.generativeSummary = existingPlace.generativeSummary
+                }
+                if mergedPlace.isFree == nil {
+                    mergedPlace.isFree = existingPlace.isFree
+                }
+                
+                allPlacesById[place.id] = mergedPlace
+            } else {
+                allPlacesById[place.id] = place
+            }
         }
     }
     

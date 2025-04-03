@@ -21,8 +21,8 @@ struct Place: Identifiable, Codable, Equatable {
     
     // Optional fields that will be populated from details API
     var photos: [String] = [] // Array of photo URLs, with default empty array
-    var displayName: String?
-    var rating: Double?
+    var name: String?
+    var googleRating: Double?
     var reviews: [PlaceDetails.Review]?
     var priceLevel: Int?
     var userRatingCount: Int?
@@ -41,7 +41,9 @@ struct Place: Identifiable, Codable, Equatable {
     var goodForGroups: Bool?
     var allowsDogs: Bool?
     var restroom: Bool?
-    var paymentOptions: PlaceDetails.PaymentOptions?
+    var acceptsCreditCards: Bool?
+    var acceptsDebitCards: Bool?
+    var acceptsCashOnly: Bool?
     var generativeSummary: String?
     var isFree: Bool?
     
@@ -71,8 +73,8 @@ struct Place: Identifiable, Codable, Equatable {
     
     // Update place with details from the details API response
     mutating func updateWithDetails(_ details: PlaceDetails) {
-        self.displayName = details.displayName
-        self.rating = details.rating
+        self.name = details.name
+        self.googleRating = details.googleRating
         self.reviews = details.reviews
         self.priceLevel = details.priceLevel
         self.userRatingCount = details.userRatingCount
@@ -91,7 +93,9 @@ struct Place: Identifiable, Codable, Equatable {
         self.goodForGroups = details.goodForGroups
         self.allowsDogs = details.allowsDogs
         self.restroom = details.restroom
-        self.paymentOptions = details.paymentOptions
+        self.acceptsCreditCards = details.acceptsCreditCards
+        self.acceptsDebitCards = details.acceptsDebitCards
+        self.acceptsCashOnly = details.acceptsCashOnly
         self.generativeSummary = details.generativeSummary
         self.isFree = details.isFree
     }

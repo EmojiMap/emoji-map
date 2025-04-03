@@ -104,11 +104,11 @@ class PlaceSheetViewModel: ObservableObject {
                     self.place.updateWithDetails(response.data)
                     
                     // Log some key details
-                    if let displayName = response.data.displayName {
-                        self.logger.notice("Place name: \(displayName)")
+                    if let name = response.data.name {
+                        self.logger.notice("Place name: \(name)")
                     }
                     
-                    if let rating = response.data.rating {
+                    if let rating = response.data.googleRating {
                         self.logger.notice("Place rating: \(rating)")
                     }
                     

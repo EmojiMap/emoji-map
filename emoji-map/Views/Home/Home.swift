@@ -49,7 +49,7 @@ struct Home: View {
                     
                     // Log a few sample coffee places
                     for (index, place) in coffeePlaces.prefix(3).enumerated() {
-                        logger.notice("🔍 Coffee place \(index+1): \(place.displayName ?? "Unknown") - Emoji: '\(place.emoji)'")
+                        logger.notice("🔍 Coffee place \(index+1): \(place.name ?? "Unknown") - Emoji: '\(place.emoji)'")
                     }
                 }
             }

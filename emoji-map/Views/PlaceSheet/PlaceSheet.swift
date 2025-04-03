@@ -62,8 +62,8 @@ struct PlaceDetailView: View {
                         )
                     
                     VStack(alignment: .leading, spacing: 6) {
-                        if let displayName = viewModel.place.displayName {
-                            Text(displayName)
+                        if let name = viewModel.place.name {
+                            Text(name)
                                 .font(.title3)
                                 .fontWeight(.bold)
                         } else {
@@ -98,7 +98,7 @@ struct PlaceDetailView: View {
                         }
                         
                         // Rating stars
-                        if let rating = viewModel.place.rating {
+                        if let rating = viewModel.place.googleRating {
                             HStack(spacing: 2) {
                                 // Show actual stars
                                 ForEach(1...5, id: \.self) { star in
@@ -134,6 +134,75 @@ struct PlaceDetailView: View {
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
                 
+                // Photos section
+                if !viewModel.place.photos.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "photo.fill")
+                                .foregroundColor(.purple)
+                            Text("Photos")
+                                .font(.headline)
+                        }
+                        .padding(.horizontal)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(viewModel.place.photos, id: \.self) { photoUrl in
+                                    AsyncImage(url: URL(string: photoUrl)) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(width: 150, height: 150)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 150, height: 150)
+                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                        case .failure:
+                                            Image(systemName: "photo")
+                                                .font(.largeTitle)
+                                                .foregroundColor(.gray)
+                                                .frame(width: 150, height: 150)
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                    .task(id: photoUrl) {
+                                        // Task will be automatically cancelled when view disappears
+                                        // or when photoUrl changes
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                } else if viewModel.isLoadingPhotos {
+                    // Photos section with shimmer
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "photo.fill")
+                                .foregroundColor(.purple)
+                            Text("Photos")
+                                .font(.headline)
+                        }
+                        .padding(.horizontal)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                // Show 3 shimmer placeholders
+                                ForEach(0..<3, id: \.self) { _ in
+                                    ShimmerView()
+                                        .frame(width: 150, height: 150)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                }
+
                 // User Rating section
                 UserRatingView(placeId: place.id, isLoading: viewModel.isLoadingDetails, place: place, viewModel: viewModel)
                     .padding(.vertical, 12)
@@ -151,7 +220,7 @@ struct PlaceDetailView: View {
                     Button(action: {
                         // Open in Maps app
                         var mapsUrlString: String
-                        if let placeName = viewModel.place.displayName?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                        if let placeName = viewModel.place.name?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
                             // Use q for name and ll for coordinates to match name at location
                             mapsUrlString = "https://maps.apple.com/?q=\(placeName)&ll=\(viewModel.place.location.latitude),\(viewModel.place.location.longitude)"
                         } else {
@@ -308,75 +377,6 @@ struct PlaceDetailView: View {
                             .padding()
                             .background(Color(.systemGray6))
                             .cornerRadius(8)
-                            .padding(.horizontal)
-                        }
-                    }
-                }
-                
-                // Photos section
-                if !viewModel.place.photos.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "photo.fill")
-                                .foregroundColor(.purple)
-                            Text("Photos")
-                                .font(.headline)
-                        }
-                        .padding(.horizontal)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(viewModel.place.photos, id: \.self) { photoUrl in
-                                    AsyncImage(url: URL(string: photoUrl)) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ProgressView()
-                                                .frame(width: 150, height: 150)
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 150, height: 150)
-                                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                                .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
-                                        case .failure:
-                                            Image(systemName: "photo")
-                                                .font(.largeTitle)
-                                                .foregroundColor(.gray)
-                                                .frame(width: 150, height: 150)
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
-                                    .task(id: photoUrl) {
-                                        // Task will be automatically cancelled when view disappears
-                                        // or when photoUrl changes
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-                } else if viewModel.isLoadingPhotos {
-                    // Photos section with shimmer
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "photo.fill")
-                                .foregroundColor(.purple)
-                            Text("Photos")
-                                .font(.headline)
-                        }
-                        .padding(.horizontal)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                // Show 3 shimmer placeholders
-                                ForEach(0..<3, id: \.self) { _ in
-                                    ShimmerView()
-                                        .frame(width: 150, height: 150)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                                }
-                            }
                             .padding(.horizontal)
                         }
                     }
@@ -640,21 +640,21 @@ struct ShareSheet: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIActivityViewController {
         // Log the place details for debugging
         logger.notice("Creating share sheet for place: \(viewModel.place.id)")
-        logger.notice("Display name: \(String(describing: viewModel.place.displayName))")
+        logger.notice("Name: \(String(describing: viewModel.place.name))")
         logger.notice("Primary type: \(String(describing: viewModel.place.primaryTypeDisplayName))")
         
         // Create share items
         var shareItems: [Any] = []
         
         // Share text
-        var shareText = viewModel.place.displayName ?? "Check out this place!"
+        var shareText = viewModel.place.name ?? "Check out this place!"
         if let type = viewModel.place.primaryTypeDisplayName {
             shareText += " - \(type)"
         }
         shareItems.append(shareText)
         
         // Maps URL with place name and coordinates
-        if let placeName = viewModel.place.displayName?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {            
+        if let placeName = viewModel.place.name?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {            
             // Use q for name and ll for coordinates to match name at location
             let mapsUrlString = "https://maps.apple.com/?q=\(placeName)&ll=\(viewModel.place.location.latitude),\(viewModel.place.location.longitude)"
             if let mapsUrl = URL(string: mapsUrlString) {
@@ -740,7 +740,7 @@ struct ExpandableReview: View {
             
             // Review text with expansion capability
             VStack(alignment: .leading, spacing: 4) {
-                Text(review.text.text)
+                Text(review.text)
                     .font(.subheadline)
                     .lineLimit(isExpanded ? nil : 3)
                     .background(
@@ -749,7 +749,7 @@ struct ExpandableReview: View {
                             Color.clear
                                 .onAppear {
                                     // Calculate if we need a "Read More" button by checking text height
-                                    let textHeight = calculateTextHeight(text: review.text.text, font: UIFont.preferredFont(forTextStyle: .subheadline), width: geometry.size.width)
+                                    let textHeight = calculateTextHeight(text: review.text, font: UIFont.preferredFont(forTextStyle: .subheadline), width: geometry.size.width)
                                     let lineHeight = UIFont.preferredFont(forTextStyle: .subheadline).lineHeight
                                     showReadMoreButton = textHeight > lineHeight * 3.5
                                 }
@@ -808,22 +808,22 @@ struct ExpandableReview: View {
                 "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b",
                 "https://images.unsplash.com/photo-1565299715199-866c917206bb"
             ],
-            displayName: "Regular Restaurant",
-            rating: 4.5,
+            name: "Regular Restaurant",
+            googleRating: 4.5,
             reviews: [
                 PlaceDetails.Review(
-                    name: "reviewer1",
+                    id: "review-1",
+                    placeId: "preview-id-1",
                     relativePublishTimeDescription: "2 weeks ago",
                     rating: 4,
-                    text: PlaceDetails.Review.TextContent(text: "Great food and atmosphere! The tacos were delicious and the service was excellent."),
-                    originalText: nil
+                    text: "Great food and atmosphere! The tacos were delicious and the service was excellent."
                 ),
                 PlaceDetails.Review(
-                    name: "reviewer2",
+                    id: "review-2",
+                    placeId: "preview-id-1",
                     relativePublishTimeDescription: "1 month ago",
                     rating: 5,
-                    text: PlaceDetails.Review.TextContent(text: "Best Mexican food in the area. I recommend the enchiladas."),
-                    originalText: nil
+                    text: "Best Mexican food in the area. I recommend the enchiladas."
                 )
             ],
             priceLevel: 2,
@@ -840,57 +840,55 @@ struct ExpandableReview: View {
 }
        
 #Preview("High Rating Count") {
-        // Preview with high user rating count
-        PlaceSheet(
-            place: Place(
-                id: "preview-id-2",
-                emoji: "🍕",
-                location: Place.Location(latitude: 37.7749, longitude: -122.4194),
-                photos: [
-                    "https://images.unsplash.com/photo-1513104890138-7c749659a591",
-                    "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e",
-                    "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47"
-                ],
-                displayName: "Popular Restaurant",
-                rating: 4.7,
-                reviews: [
-                    PlaceDetails.Review(
-                        name: "reviewer1",
-                        relativePublishTimeDescription: "3 days ago",
-                        rating: 5,
-                        text: PlaceDetails.Review.TextContent(text: "Amazing pizza, the crust is perfect! Definitely try the pepperoni special."),
-                        originalText: nil
-                    ),
-                    PlaceDetails.Review(
-                        name: "reviewer2",
-                        relativePublishTimeDescription: "2 weeks ago",
-                        rating: 4,
-                        text: PlaceDetails.Review.TextContent(text: "Good pizza but gets really busy on weekends. Call ahead for takeout."),
-                        originalText: nil
-                    ),
-                    PlaceDetails.Review(
-                        name: "reviewer3",
-                        relativePublishTimeDescription: "1 month ago",
-                        rating: 5,
-                        text: PlaceDetails.Review.TextContent(text: "Best pizza in the city. The garlic knots are also amazing!"),
-                        originalText: nil
-                    )
-                ],
-                priceLevel: 3,
-                userRatingCount: 15423,
-                openNow: true,
-                primaryTypeDisplayName: "Pizza",
-                delivery: true,
-                dineIn: true,
-                outdoorSeating: true,
-                servesCoffee: false,
-                goodForGroups: true
-            )
+    PlaceSheet(
+        place: Place(
+            id: "preview-id-2",
+            emoji: "🍕",
+            location: Place.Location(latitude: 37.7749, longitude: -122.4194),
+            photos: [
+                "https://images.unsplash.com/photo-1513104890138-7c749659a591",
+                "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e",
+                "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47"
+            ],
+            name: "Popular Restaurant",
+            googleRating: 4.7,
+            reviews: [
+                PlaceDetails.Review(
+                    id: "review-1",
+                    placeId: "preview-id-2",
+                    relativePublishTimeDescription: "3 days ago",
+                    rating: 5,
+                    text: "Amazing pizza, the crust is perfect! Definitely try the pepperoni special."
+                ),
+                PlaceDetails.Review(
+                    id: "review-2",
+                    placeId: "preview-id-2",
+                    relativePublishTimeDescription: "2 weeks ago",
+                    rating: 4,
+                    text: "Good pizza but gets really busy on weekends. Call ahead for takeout."
+                ),
+                PlaceDetails.Review(
+                    id: "review-3",
+                    placeId: "preview-id-2",
+                    relativePublishTimeDescription: "1 month ago",
+                    rating: 5,
+                    text: "Best pizza in the city. The garlic knots are also amazing!"
+                )
+            ],
+            priceLevel: 3,
+            userRatingCount: 15423,
+            openNow: true,
+            primaryTypeDisplayName: "Pizza",
+            delivery: true,
+            dineIn: true,
+            outdoorSeating: true,
+            servesCoffee: false,
+            goodForGroups: true
         )
-    }
+    )
+}
       
 #Preview("Very High Values") {
-    // Preview with very high user rating count and high price
     PlaceSheet(
         place: Place(
             id: "preview-id-3",
@@ -901,22 +899,22 @@ struct ExpandableReview: View {
                 "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
                 "https://images.unsplash.com/photo-1424847651672-bf20a4b0982b"
             ],
-            displayName: "Luxury Restaurant",
-            rating: 4.9,
+            name: "Luxury Restaurant",
+            googleRating: 4.9,
             reviews: [
                 PlaceDetails.Review(
-                    name: "reviewer1",
+                    id: "review-1",
+                    placeId: "preview-id-3",
                     relativePublishTimeDescription: "1 week ago",
                     rating: 5,
-                    text: PlaceDetails.Review.TextContent(text: "Exceptional dining experience. The chef's tasting menu was outstanding and the wine pairing was perfect."),
-                    originalText: nil
+                    text: "Exceptional dining experience. The chef's tasting menu was outstanding and the wine pairing was perfect."
                 ),
                 PlaceDetails.Review(
-                    name: "reviewer2",
+                    id: "review-2",
+                    placeId: "preview-id-3",
                     relativePublishTimeDescription: "2 months ago",
                     rating: 5,
-                    text: PlaceDetails.Review.TextContent(text: "Worth every penny. The service is impeccable and the food is a culinary masterpiece."),
-                    originalText: nil
+                    text: "Worth every penny. The service is impeccable and the food is a culinary masterpiece."
                 )
             ],
             priceLevel: 5,
@@ -932,7 +930,6 @@ struct ExpandableReview: View {
 }
         
 #Preview("Low Values") {
-    // Preview with low values
     PlaceSheet(
         place: Place(
             id: "preview-id-4",
@@ -941,15 +938,15 @@ struct ExpandableReview: View {
             photos: [
                 "https://images.unsplash.com/photo-1501443762994-82bd5dace89a"
             ],
-            displayName: "New Ice Cream Shop",
-            rating: 3.0,
+            name: "New Ice Cream Shop",
+            googleRating: 3.0,
             reviews: [
                 PlaceDetails.Review(
-                    name: "reviewer1",
+                    id: "review-1",
+                    placeId: "preview-id-4",
                     relativePublishTimeDescription: "5 days ago",
                     rating: 3,
-                    text: PlaceDetails.Review.TextContent(text: "Decent ice cream but limited flavors. Hope they expand their menu soon."),
-                    originalText: nil
+                    text: "Decent ice cream but limited flavors. Hope they expand their menu soon."
                 )
             ],
             priceLevel: 1,
