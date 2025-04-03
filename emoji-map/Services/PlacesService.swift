@@ -137,7 +137,8 @@ class PlacesService: PlacesServiceProtocol {
                 endpoint: .placeSearch,
                 body: requestBody,
                 queryItems: nil,
-                authToken: nil
+                authToken: nil,
+                userId: nil
             )
             
             // Cache the results
@@ -225,7 +226,8 @@ class PlacesService: PlacesServiceProtocol {
                 endpoint: .placeSearch,
                 body: requestBody,
                 queryItems: nil,
-                authToken: nil
+                authToken: nil,
+                userId: nil
             )
             
             // Cache the results
@@ -311,7 +313,8 @@ class PlacesService: PlacesServiceProtocol {
                         endpoint: .placeSearch,
                         body: requestBody,
                         queryItems: nil,
-                        authToken: nil
+                        authToken: nil,
+                        userId: nil
                     )
                     
                     // Cache the results
@@ -393,7 +396,8 @@ class PlacesService: PlacesServiceProtocol {
                 endpoint: .placeSearch,
                 body: modifiedRequestBody,
                 queryItems: nil,
-                authToken: nil
+                authToken: nil,
+                userId: nil
             )
             
             // Log the response details

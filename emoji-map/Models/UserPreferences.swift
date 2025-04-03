@@ -141,12 +141,13 @@ class UserPreferences: ObservableObject {
                 // Log the request
                 self.logger.notice("Sending favorite update to API: placeId=\(placeId), isFavorite=\(isFavorite)")
                 
-                // Make the request to update the favorite status with the auth token
+                // Make the request to update the favorite status with the auth token and userId
                 let _: FavoriteResponse = try await networkService.post(
                     endpoint: .favorite,
                     body: favoriteRequest,
                     queryItems: nil,
-                    authToken: sessionToken
+                    authToken: sessionToken,
+                    userId: userId
                 )
                 
                 // Log success
@@ -245,12 +246,13 @@ class UserPreferences: ObservableObject {
                 // Log the request
                 self.logger.notice("Sending rating update to API: placeId=\(placeId), rating=\(rating)")
                 
-                // Make the request to update the rating with the auth token
+                // Make the request to update the rating with the auth token and userId
                 let _: RatingResponse = try await networkService.post(
                     endpoint: .rating,
                     body: ratingRequest,
                     queryItems: nil,
-                    authToken: sessionToken
+                    authToken: sessionToken,
+                    userId: userId
                 )
                 
                 // Log success
