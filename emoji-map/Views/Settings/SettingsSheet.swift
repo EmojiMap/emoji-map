@@ -132,24 +132,26 @@ struct SettingsSheet: View {
                         .padding(.bottom, 4)
                     
                     // User is logged in
-                    if let _ = clerk.user, let email = userPreferences.userEmail {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Logged in as")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                
-                                Spacer()
-                                
-                                 Text(email)
-                                     .font(.subheadline)
-                                     .foregroundColor(.secondary)
+                    if let _ = clerk.user {
+                        if let email = userPreferences.userEmail {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Logged in as")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    
+                                    Spacer()
+                                    
+                                    Text(email)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
                             }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
                         
                         // Account Management Button
                         Button(action: {
