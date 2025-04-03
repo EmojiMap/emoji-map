@@ -131,8 +131,8 @@ struct SettingsSheet: View {
                         .foregroundColor(.primary)
                         .padding(.bottom, 4)
                     
-                    if let user = clerk.user {
-                        // User is logged in
+                    // User is logged in
+                    if let _ = clerk.user, let email = userPreferences.userEmail {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Logged in as")
@@ -141,19 +141,9 @@ struct SettingsSheet: View {
                                 
                                 Spacer()
                                 
-                                if let email = user.emailAddresses.first?.emailAddress {
-                                    Text(email)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                } else if let username = user.username {
-                                    Text(username)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    Text(user.id)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
+                                 Text(email)
+                                     .font(.subheadline)
+                                     .foregroundColor(.secondary)
                             }
                         }
                         .padding(.vertical, 8)
@@ -417,6 +407,7 @@ struct SettingsSheet: View {
         .fullScreenCover(isPresented: $viewModel.shouldShowAdditionalInfoSheet) {
             AdditionalUserInfo(viewModel: viewModel)
         }
+
     }
     
     // MARK: - Nonce Generation
@@ -513,9 +504,6 @@ struct SettingsSheet: View {
     func signInWithIdentityToken(_ idToken: String) async throws {
         // Use the HomeViewModel method for sign-in
         try await viewModel.signInWithApple(idToken: idToken)
-        
-        // After successful sign-in, fetch user data
-        await viewModel.fetchUserData()
     }
 }
 

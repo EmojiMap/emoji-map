@@ -188,11 +188,6 @@ class DefaultHTTPClient: HTTPClient {
                 throw error
             }
             
-            // Log the raw response for debugging (limited to first 200 characters)
-            if let jsonString = String(data: data, encoding: .utf8) {
-                logger.notice("Raw response: \(jsonString.prefix(200))...")
-            }
-            
             return data
         } catch let urlError as URLError {
             let networkError = NetworkError.from(urlError: urlError)
@@ -463,11 +458,6 @@ class NetworkService: NetworkServiceProtocol {
                         let error = NetworkError.from(statusCode: httpResponse.statusCode, data: data)
                         self.logger.error("Server returned error: \(error.localizedDescription)")
                         throw error
-                    }
-                    
-                    // Log the raw response for debugging
-                    if let jsonString = String(data: data, encoding: .utf8) {
-                        self.logger.notice("Raw response: \(jsonString.prefix(200))...")
                     }
                     
                     return data

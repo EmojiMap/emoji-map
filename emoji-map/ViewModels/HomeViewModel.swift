@@ -377,7 +377,7 @@ class HomeViewModel: ObservableObject {
                 )
                 
                 // Log the raw response structure
-                logger.notice("User response received with user ID: \(userResponse.user.id)")
+                logger.notice("User response received with user ID: \(userResponse.user.id) \(userResponse.user.email)")
                 
                 // Convert the response to a User model
                 let user = userResponse.toUser
@@ -433,6 +433,9 @@ class HomeViewModel: ObservableObject {
             // User is not authenticated, skip the request
             // Clear any existing user data
             currentUser = nil
+            isAdmin = false
+            
+            logger.info("user is not authenticated with clerk")
         }
     }
     
